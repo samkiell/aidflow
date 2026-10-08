@@ -65,6 +65,7 @@ impl AidFlowContract {
     /// Initialize the contract once. The admin controls campaign registration.
     pub fn initialize(env: Env, admin: Address) -> Result<(), AidFlowError> {
         admin.require_auth();
+        Self::extend_instance_ttl(&env);
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(AidFlowError::AlreadyInitialized);
         }
@@ -85,6 +86,7 @@ impl AidFlowContract {
     ) -> Result<(), AidFlowError> {
         admin.require_auth();
         Self::require_admin(&env, &admin)?;
+        Self::extend_instance_ttl(&env);
 
         if goal_amount <= 0 {
             return Err(AidFlowError::InvalidAmount);
@@ -128,6 +130,7 @@ impl AidFlowContract {
         amount: i128,
     ) -> Result<(), AidFlowError> {
         donor.require_auth();
+        Self::extend_instance_ttl(&env);
         let key = DataKey::Campaign(campaign_id.clone());
         let mut campaign: Campaign = env
             .storage()
@@ -190,6 +193,7 @@ impl AidFlowContract {
     /// is reached. The contract performs the transfer and state update atomically.
     pub fn withdraw(env: Env, campaign_id: Symbol, owner: Address) -> Result<i128, AidFlowError> {
         owner.require_auth();
+        Self::extend_instance_ttl(&env);
         let key = DataKey::Campaign(campaign_id.clone());
         let mut campaign: Campaign = env
             .storage()
@@ -305,6 +309,7 @@ impl AidFlowContract {
     ) -> Result<(), AidFlowError> {
         admin.require_auth();
         Self::require_admin(&env, &admin)?;
+        Self::extend_instance_ttl(&env);
         let key = DataKey::Campaign(campaign_id);
         let mut campaign: Campaign = env
             .storage()
@@ -326,6 +331,7 @@ impl AidFlowContract {
     ) -> Result<(), AidFlowError> {
         admin.require_auth();
         Self::require_admin(&env, &admin)?;
+        Self::extend_instance_ttl(&env);
         let key = DataKey::Campaign(campaign_id);
         let mut campaign: Campaign = env
             .storage()
@@ -340,6 +346,36 @@ impl AidFlowContract {
         }
         campaign.status = CampaignStatus::Active;
         Self::store_campaign(&env, &key, &campaign);
+        Ok(())
+    }
+
+    /// Refresh persistent storage TTLs. A keeper should call this for active
+    /// campaigns and each donor contribution before their ledger TTL expires.
+    pub fn maintain_campaign(env: Env, campaign_id: Symbol) -> Result<(), AidFlowError> {
+        Self::extend_instance_ttl(&env);
+        let key = DataKey::Campaign(campaign_id);
+        if !env.storage().persistent().has(&key) {
+            return Err(AidFlowError::CampaignNotFound);
+        }
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        Ok(())
+    }
+
+    pub fn maintain_contribution(
+        env: Env,
+        campaign_id: Symbol,
+        donor: Address,
+    ) -> Result<(), AidFlowError> {
+        Self::extend_instance_ttl(&env);
+        let key = DataKey::Contribution(campaign_id, donor);
+        if !env.storage().persistent().has(&key) {
+            return Err(AidFlowError::InsufficientContribution);
+        }
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         Ok(())
     }
 
@@ -366,6 +402,12 @@ impl AidFlowContract {
 }
 
 impl AidFlowContract {
+    fn extend_instance_ttl(env: &Env) {
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+    }
+
     fn require_admin(env: &Env, supplied: &Address) -> Result<(), AidFlowError> {
         let admin: Address = env
             .storage()
