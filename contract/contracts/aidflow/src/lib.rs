@@ -173,15 +173,11 @@ impl AidFlowContract {
             .persistent()
             .get(&contribution_key)
             .unwrap_or(0);
-        let total = previous
-            .checked_add(amount)
-            .ok_or(AidFlowError::Overflow)?;
+        let total = previous.checked_add(amount).ok_or(AidFlowError::Overflow)?;
         env.storage().persistent().set(&contribution_key, &total);
-        env.storage().persistent().extend_ttl(
-            &contribution_key,
-            TTL_THRESHOLD,
-            TTL_EXTEND_TO,
-        );
+        env.storage()
+            .persistent()
+            .extend_ttl(&contribution_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.events().publish(
             (Symbol::new(&env, "contributed"), campaign_id),
@@ -192,11 +188,7 @@ impl AidFlowContract {
 
     /// Release the raised amount to the verified campaign owner once the goal
     /// is reached. The contract performs the transfer and state update atomically.
-    pub fn withdraw(
-        env: Env,
-        campaign_id: Symbol,
-        owner: Address,
-    ) -> Result<i128, AidFlowError> {
+    pub fn withdraw(env: Env, campaign_id: Symbol, owner: Address) -> Result<i128, AidFlowError> {
         owner.require_auth();
         let key = DataKey::Campaign(campaign_id.clone());
         let mut campaign: Campaign = env
@@ -445,8 +437,14 @@ mod test {
 
         client.contribute(&campaign_id, &donor, &500);
         assert_eq!(client.withdraw(&campaign_id, &owner), 500);
-        assert_eq!(client.get_campaign(&campaign_id).unwrap().status, CampaignStatus::Closed);
-        assert_eq!(client.get_campaign(&campaign_id).unwrap().total_withdrawn, 500);
+        assert_eq!(
+            client.get_campaign(&campaign_id).unwrap().status,
+            CampaignStatus::Closed
+        );
+        assert_eq!(
+            client.get_campaign(&campaign_id).unwrap().total_withdrawn,
+            500
+        );
     }
 
     #[test]
