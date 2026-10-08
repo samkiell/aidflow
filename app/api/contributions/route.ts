@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
+import { StrKey } from '@stellar/stellar-sdk';
 import { connectMongo } from '@/lib/mongodb';
 import { CampaignModel } from '@/models/Campaign';
 import { ContributionModel } from '@/models/Contribution';
@@ -134,10 +135,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment amount is invalid.' }, { status: 422 });
     }
 
+    const donorPublicKey = operation.source_account ?? transaction.source_account;
+    if (!StrKey.isValidEd25519PublicKey(donorPublicKey)) {
+      return NextResponse.json({ error: 'Transaction sender is not a valid Stellar account.' }, { status: 422 });
+    }
+
     const contribution = await ContributionModel.create({
       campaignId: campaign._id,
       transactionHash: transaction.hash,
-      donorPublicKey: transaction.source_account,
+      donorPublicKey,
       amount: operation.amount,
       asset: campaign.asset,
       network: campaign.network,
