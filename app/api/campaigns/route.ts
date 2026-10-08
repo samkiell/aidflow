@@ -82,9 +82,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const adminToken = process.env.AIDFLOW_CAMPAIGN_ADMIN_TOKEN;
-  if (!adminToken) {
+  if (!adminToken || adminToken.length < 32) {
     return NextResponse.json(
-      { error: 'Campaign creation is not configured on this deployment.' },
+      { error: 'Campaign creation requires a server-side admin token of at least 32 characters.' },
       { status: 503 },
     );
   }
