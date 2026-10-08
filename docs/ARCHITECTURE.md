@@ -10,8 +10,10 @@
 - `GET /api/health`: process liveness only.
 - `GET /api/ready`: verifies that MongoDB can be reached.
 - `GET /api/stellar/account?publicKey=G...`: read-only account summary.
-- `GET /api/campaigns?page=1&limit=20`: published campaigns only.
+- `GET /api/campaigns?page=1&limit=20`: published, unexpired campaigns only.
 - `POST /api/campaigns`: temporary server-token protected campaign creation. It creates drafts by default; this is not a replacement for user sessions or organization verification.
+- `POST /api/contributions`: verifies a successful one-operation Stellar payment against campaign destination, asset, and configured network before saving a unique transaction record.
+- `GET /api/contributions?campaignId=<id>`: returns up to 50 public transaction records without donor wallet addresses.
 
 ## Planned data model
 - User: email, display name, role, status, auth provider ID.
