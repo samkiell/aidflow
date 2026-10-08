@@ -1,3 +1,4 @@
+import { Keypair } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 import { createCampaignSchema } from './campaign-validation';
 
@@ -6,7 +7,7 @@ const validCampaign = () => ({
   description: 'Fund reliable clean water access for a community and publish reviewed distribution outcomes.',
   organizationName: 'Community Aid Network',
   goalAmount: '1250.5000000',
-  destinationPublicKey: 'G' + 'A'.repeat(55),
+  destinationPublicKey: Keypair.random().publicKey(),
   endsAt: new Date(Date.now() + 86_400_000).toISOString(),
 });
 
@@ -18,9 +19,10 @@ describe('createCampaignSchema', () => {
     expect(parsed.status).toBe('draft');
   });
 
-  it('rejects non-positive or malformed contribution goals', () => {
+  it('rejects non-positive, oversized, or malformed contribution goals', () => {
     expect(createCampaignSchema.safeParse({ ...validCampaign(), goalAmount: '0' }).success).toBe(false);
     expect(createCampaignSchema.safeParse({ ...validCampaign(), goalAmount: '1.12345678' }).success).toBe(false);
+    expect(createCampaignSchema.safeParse({ ...validCampaign(), goalAmount: '1234567890123456' }).success).toBe(false);
   });
 
   it('requires an issuer for non-native assets', () => {
@@ -31,8 +33,16 @@ describe('createCampaignSchema', () => {
     }
   });
 
-  it('rejects malformed destination addresses and expired campaigns', () => {
-    expect(createCampaignSchema.safeParse({ ...validCampaign(), destinationPublicKey: 'not-a-key' }).success).toBe(false);
+  it('rejects a malformed Stellar address and expired campaigns', () => {
+    expect(createCampaignSchema.safeParse({ ...validCampaign(), destinationPublicKey: 'G' + 'A'.repeat(55) }).success).toBe(false);
     expect(createCampaignSchema.safeParse({ ...validCampaign(), endsAt: new Date(Date.now() - 1000).toISOString() }).success).toBe(false);
+  });
+
+  it('rejects an issuer for the native asset', () => {
+    const parsed = createCampaignSchema.safeParse({
+      ...validCampaign(),
+      assetIssuer: Keypair.random().publicKey(),
+    });
+    expect(parsed.success).toBe(false);
   });
 });
