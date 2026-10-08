@@ -2,13 +2,14 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { connectMongo } from '@/lib/mongodb';
+import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 import { createCampaignSchema } from '@/lib/campaign-validation';
 import { CampaignModel } from '@/models/Campaign';
 
 export const runtime = 'nodejs';
 
 const querySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
@@ -37,6 +38,19 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectMongo();
+    const allowed = await consumeRateLimit(
+      'campaign-discovery',
+      getRequestIdentity(request.headers),
+      60,
+      60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many campaign requests. Try again shortly.' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
+
     const { page, limit } = parsedQuery.data;
     const filter = { status: 'published', endsAt: { $gt: new Date() } };
     const [campaigns, total] = await Promise.all([
@@ -96,6 +110,19 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectMongo();
+    const allowed = await consumeRateLimit(
+      'campaign-creation',
+      getRequestIdentity(request.headers),
+      10,
+      60 * 60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many campaign creation attempts. Try again later.' },
+        { status: 429, headers: { 'Retry-After': '3600' } },
+      );
+    }
+
     const campaign = await CampaignModel.create(parsed.data);
     return NextResponse.json({ data: campaign }, { status: 201 });
   } catch {
