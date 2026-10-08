@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   try {
     await connectMongo();
     const { page, limit } = parsedQuery.data;
-    const filter = { status: 'published' };
+    const filter = { status: 'published', endsAt: { $gt: new Date() } };
     const [campaigns, total] = await Promise.all([
       CampaignModel.find(filter)
         .select('title description organizationName goalAmount asset network status endsAt createdAt')
