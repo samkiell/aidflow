@@ -89,7 +89,10 @@ impl AidFlowContract {
         if goal_amount <= 0 {
             return Err(AidFlowError::InvalidAmount);
         }
-        if end_ledger <= env.ledger().sequence() {
+        let current_ledger = env.ledger().sequence();
+        if end_ledger <= current_ledger
+            || end_ledger > current_ledger.saturating_add(TTL_EXTEND_TO - TTL_THRESHOLD)
+        {
             return Err(AidFlowError::InvalidDeadline);
         }
 
