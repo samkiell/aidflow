@@ -396,13 +396,7 @@ mod test {
     use super::*;
     use soroban_sdk::{testutils::Address as _, token, Address, Env};
 
-    fn setup() -> (
-        Env,
-        AidFlowContractClient<'static>,
-        Address,
-        Address,
-        Address,
-    ) {
+    fn setup() -> (Env, Address, Address, Address, Address) {
         let env = Env::default();
         env.mock_all_auths();
         let admin = Address::generate(&env);
@@ -423,12 +417,13 @@ mod test {
             &500,
             &(env.ledger().sequence() + 10),
         );
-        (env, client, admin, owner, donor)
+        (env, contract_id, admin, owner, donor)
     }
 
     #[test]
     fn records_contributions_and_prevents_overfunding() {
-        let (env, client, _admin, _owner, donor) = setup();
+        let (env, contract_id, _admin, _owner, donor) = setup();
+        let client = AidFlowContractClient::new(&env, &contract_id);
         let campaign_id = Symbol::new(&env, "campaign_1");
 
         client.contribute(&campaign_id, &donor, &300);
@@ -441,7 +436,8 @@ mod test {
 
     #[test]
     fn releases_funds_to_campaign_owner_when_goal_is_met() {
-        let (env, client, _admin, owner, donor) = setup();
+        let (env, contract_id, _admin, owner, donor) = setup();
+        let client = AidFlowContractClient::new(&env, &contract_id);
         let campaign_id = Symbol::new(&env, "campaign_1");
 
         client.contribute(&campaign_id, &donor, &500);
@@ -452,7 +448,8 @@ mod test {
 
     #[test]
     fn refunds_donors_when_goal_is_not_met_before_deadline() {
-        let (env, client, _admin, _owner, donor) = setup();
+        let (env, contract_id, _admin, _owner, donor) = setup();
+        let client = AidFlowContractClient::new(&env, &contract_id);
         let campaign_id = Symbol::new(&env, "campaign_1");
         client.contribute(&campaign_id, &donor, &100);
 
@@ -464,7 +461,8 @@ mod test {
 
     #[test]
     fn rejects_second_initialization() {
-        let (env, client, admin, _owner, _donor) = setup();
+        let (env, contract_id, admin, _owner, _donor) = setup();
+        let client = AidFlowContractClient::new(&env, &contract_id);
         assert!(client.try_initialize(&admin).is_err());
         assert_eq!(client.version(), Symbol::new(&env, "aidflow_v1"));
     }
