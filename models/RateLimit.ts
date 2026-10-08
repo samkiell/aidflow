@@ -1,4 +1,4 @@
-import { model, models, Schema } from 'mongoose';
+import { model, models, Schema, type Model } from 'mongoose';
 
 const rateLimitSchema = new Schema(
   {
@@ -18,5 +18,6 @@ export interface RateLimitBucket {
   expiresAt: Date;
 }
 
-export const RateLimitModel =
-  models.RateLimit ?? model('RateLimit', rateLimitSchema);
+export const RateLimitModel: Model<RateLimitBucket> =
+  (models.RateLimit as Model<RateLimitBucket> | undefined) ??
+  model<RateLimitBucket>('RateLimit', rateLimitSchema);
