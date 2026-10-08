@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { StrKey } from '@stellar/stellar-sdk';
 import { connectMongo } from '@/lib/mongodb';
+import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 import { CampaignModel } from '@/models/Campaign';
 import { ContributionModel } from '@/models/Contribution';
 import { horizon, stellarNetwork } from '@/lib/stellar';
@@ -19,6 +20,19 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectMongo();
+    const allowed = await consumeRateLimit(
+      'contribution-ledger-read',
+      getRequestIdentity(request.headers),
+      60,
+      60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many ledger requests. Try again shortly.' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
+
     const campaign = await CampaignModel.findOne({
       _id: campaignId,
       status: 'published',
@@ -73,6 +87,19 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectMongo();
+    const allowed = await consumeRateLimit(
+      'contribution-verification',
+      getRequestIdentity(request.headers),
+      5,
+      10 * 60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Try again later.' },
+        { status: 429, headers: { 'Retry-After': '600' } },
+      );
+    }
+
     const campaign = await CampaignModel.findOne({
       _id: body.campaignId,
       status: 'published',
