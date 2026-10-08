@@ -8,6 +8,7 @@
 - Read-only Stellar Horizon account summary.
 - Public listing of published campaigns with bounded pagination.
 - Restricted campaign creation endpoint using a server-side bootstrap token.
+- Stellar payment verification before recording contributions, with a public privacy-conscious transaction ledger.
 - Liveness and database readiness endpoints.
 - Soroban contract workspace starter and product/architecture documentation.
 
@@ -24,6 +25,8 @@ Open `http://localhost:3000`. Liveness: `/api/health`. Database readiness: `/api
 ## API notes
 - `GET /api/campaigns?page=1&limit=20` returns published campaigns only.
 - `POST /api/campaigns` requires `Authorization: Bearer <AIDFLOW_CAMPAIGN_ADMIN_TOKEN>`. Configure the token only in server environment variables. This temporary bootstrap mechanism is not full user authentication or role-based access control.
+- `POST /api/contributions` accepts only a campaign ID and Stellar transaction hash. The server checks a successful single-operation payment, destination wallet, asset, and network against Horizon before saving it. The transaction hash is unique to prevent duplicate recording.
+- `GET /api/contributions?campaignId=<id>` returns the public transaction ledger without exposing donor public keys.
 - `GET /api/stellar/account?publicKey=G...` performs a read-only lookup on the configured Stellar network.
 
 ## Production status
