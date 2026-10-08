@@ -248,6 +248,7 @@ impl AidFlowContract {
         amount: i128,
     ) -> Result<i128, AidFlowError> {
         donor.require_auth();
+        Self::extend_instance_ttl(&env);
         let key = DataKey::Campaign(campaign_id.clone());
         let mut campaign: Campaign = env
             .storage()
