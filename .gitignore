@@ -2,10 +2,13 @@ node_modules/
 .next/
 out/
 build/
-.env
-.env.local
-.env.*.local
 coverage/
+contract/target/
+
+# Environment files: only checked-in templates are allowed
+.env*
+!.env.example
+!.env.*.example
+
 .DS_Store
 *.log
-contract/target/
