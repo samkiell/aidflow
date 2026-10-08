@@ -80,15 +80,11 @@ export async function consumeRateLimit(
   }
 }
 
+/**
+ * Only trust x-real-ip from a deployment proxy configured to overwrite it.
+ * Never trust arbitrary x-forwarded-for values because callers can spoof them.
+ * Self-hosted deployments must configure their proxy to set x-real-ip.
+ */
 export function getRequestIdentity(headers: Headers): string {
-  const trustedRealIp = headers.get('x-real-ip')?.trim();
-  if (trustedRealIp) return trustedRealIp;
-
-  const forwardedFor = headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    const firstAddress = forwardedFor.split(',')[0]?.trim();
-    if (firstAddress) return firstAddress;
-  }
-
-  return 'unknown';
+  return headers.get('x-real-ip')?.trim() || 'unknown';
 }
