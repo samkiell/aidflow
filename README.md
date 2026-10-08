@@ -1,15 +1,15 @@
 # AidFlow
 
-**Transparent aid, delivered.** AidFlow is a Stellar-powered donation and aid-distribution platform concept focused on traceable contributions, accountable distribution records, and privacy-aware reporting.
+**Transparent aid, delivered.** AidFlow is a Stellar-oriented donation and aid-distribution platform in active development. It aims to make contributions easier to trace and distribution records easier to review, while protecting beneficiary privacy.
 
-## What's included
-- Next.js + TypeScript app scaffold with a landing page.
+## Current implementation
+- Next.js App Router and TypeScript.
 - MongoDB/Mongoose connection helper.
-- Read-only Stellar Horizon account summary helper and API route.
-- Health-check endpoint.
-- Product requirements, architecture, and development docs.
-- Soroban contract workspace starter.
-- GitHub Actions CI for install, typecheck, lint, and build.
+- Read-only Stellar Horizon account summary.
+- Public listing of published campaigns with bounded pagination.
+- Restricted campaign creation endpoint using a server-side bootstrap token.
+- Liveness and database readiness endpoints.
+- Soroban contract workspace starter and product/architecture documentation.
 
 ## Quick start
 ```bash
@@ -19,15 +19,19 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Health check: `http://localhost:3000/api/health`.
+Open `http://localhost:3000`. Liveness: `/api/health`. Database readiness: `/api/ready`.
 
-## Important status note
-This is a starter scaffold, not a production-ready donation platform. Authentication, authorization, campaign and distribution models, payment submission and verification, and the Soroban contract logic still need implementation and review. Use Stellar testnet during development. Never commit wallet secret keys or expose beneficiary personal data.
+## API notes
+- `GET /api/campaigns?page=1&limit=20` returns published campaigns only.
+- `POST /api/campaigns` requires `Authorization: Bearer <AIDFLOW_CAMPAIGN_ADMIN_TOKEN>`. Configure the token only in server environment variables. This temporary bootstrap mechanism is not full user authentication or role-based access control.
+- `GET /api/stellar/account?publicKey=G...` performs a read-only lookup on the configured Stellar network.
+
+## Production status
+**Not production-ready.** Authentication and organization verification, contribution submission and on-chain verification, distribution evidence and review, audit logs, rate limiting, backup/restore procedures, security review, and the Soroban contract logic still need implementation and testing. Do not accept real donations until those controls and the financial flows have been independently reviewed. Use Stellar testnet during development. Never commit wallet secret keys or expose beneficiary personal data.
 
 ## Documentation
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Development setup](docs/DEVELOPMENT.md)
 
-## License
 No license has been selected yet. Add a license before accepting external contributions.
