@@ -284,11 +284,9 @@ impl AidFlowContract {
         env.storage()
             .persistent()
             .set(&contribution_key, &(contribution - amount));
-        env.storage().persistent().extend_ttl(
-            &contribution_key,
-            TTL_THRESHOLD,
-            TTL_EXTEND_TO,
-        );
+        env.storage()
+            .persistent()
+            .extend_ttl(&contribution_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         campaign.total_raised = campaign
             .total_raised
             .checked_sub(amount)
