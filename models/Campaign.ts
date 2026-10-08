@@ -1,0 +1,22 @@
+import { model, models, Schema, type InferSchemaType } from 'mongoose';
+
+const campaignSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 120 },
+    description: { type: String, required: true, trim: true, maxlength: 5000 },
+    organizationName: { type: String, required: true, trim: true, maxlength: 160 },
+    goalAmount: { type: String, required: true },
+    asset: { type: String, required: true, default: 'native' },
+    network: { type: String, enum: ['testnet', 'public'], required: true, default: 'testnet' },
+    status: { type: String, enum: ['draft', 'published', 'paused', 'completed'], required: true, default: 'draft' },
+    endsAt: { type: Date, required: true },
+  },
+  { timestamps: true, versionKey: false },
+);
+
+campaignSchema.index({ status: 1, createdAt: -1 });
+campaignSchema.index({ endsAt: 1, status: 1 });
+
+export type Campaign = InferSchemaType<typeof campaignSchema>;
+export const CampaignModel =
+  models.Campaign ?? model('Campaign', campaignSchema);
