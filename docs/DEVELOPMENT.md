@@ -4,7 +4,7 @@
 - Node.js 20.9 or newer for the web app
 - npm
 - MongoDB local instance or hosted connection string
-- Rust and the Stellar CLI (v25.2.0+) for contract tests and WASM builds
+- Rust and the Stellar CLI (v28.1.0+) for contract tests and WASM builds
 
 ## Start the web app
 1. Copy `.env.example` to `.env.local`.
