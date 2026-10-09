@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -33,4 +33,4 @@ jobs:
       - run: cargo fmt --manifest-path contract/Cargo.toml --all -- --check
       - run: cargo clippy --manifest-path contract/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path contract/Cargo.toml
-      - run: cargo build --manifest-path contract/contracts/aidflow/Cargo.toml --target wasm32-unknown-unknown --release
+      - run: cargo build --manifest-path contract/contracts/aidflow/Cargo.toml --target wasm32v1-none --release
