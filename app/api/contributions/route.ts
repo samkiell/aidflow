@@ -8,6 +8,7 @@ import { ContributionModel } from '@/models/Contribution';
 import { OrganizationModel } from '@/models/Organization';
 import { horizon, stellarNetwork } from '@/lib/stellar';
 import { decimalToUnits } from '@/lib/amount';
+import { writeAuditLog } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -202,6 +203,29 @@ export async function POST(request: NextRequest) {
       network: campaign.network,
       ledger: transaction.ledger_attr,
     });
+
+    try {
+      await writeAuditLog({
+        actorType: 'system',
+        action: 'contribution_verified',
+        targetType: 'contribution',
+        targetId: String(contribution._id),
+        metadata: {
+          campaignId: String(campaign._id),
+          transactionHash: contribution.transactionHash,
+          amount: contribution.amount,
+          asset: contribution.asset,
+          network: contribution.network,
+          ledger: contribution.ledger,
+        },
+      });
+    } catch {
+      await ContributionModel.deleteOne({ _id: contribution._id });
+      return NextResponse.json(
+        { error: 'Audit record could not be saved; contribution was not recorded.' },
+        { status: 503 },
+      );
+    }
 
     return NextResponse.json({
       data: {
