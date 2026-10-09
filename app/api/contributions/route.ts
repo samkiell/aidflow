@@ -122,6 +122,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Active campaign not found.' }, { status: 404 });
     }
 
+    const verifiedOrganization = await OrganizationModel.findOne({
+      _id: campaign.organizationId,
+      status: 'verified',
+    }).select('_id');
+
+    if (!verifiedOrganization) {
+      return NextResponse.json({ error: 'Active campaign not found.' }, { status: 404 });
+    }
+
     if (campaign.network !== stellarNetwork) {
       return NextResponse.json(
         { error: 'Campaign network does not match the configured Stellar network.' },
