@@ -5,6 +5,7 @@ import { connectMongo } from '@/lib/mongodb';
 import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 import { createCampaignSchema } from '@/lib/campaign-validation';
 import { CampaignModel } from '@/models/Campaign';
+import { OrganizationModel } from '@/models/Organization';
 
 export const runtime = 'nodejs';
 
@@ -52,7 +53,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { page, limit } = parsedQuery.data;
-    const filter = { status: 'published', endsAt: { $gt: new Date() } };
+    const verifiedOrganizationIds = await OrganizationModel.find({ status: 'verified' }).distinct('_id');
+    const filter = {
+      status: 'published',
+      endsAt: { $gt: new Date() },
+      organizationId: { $in: verifiedOrganizationIds },
+    };
     const [campaigns, total] = await Promise.all([
       CampaignModel.find(filter)
         .select('title description organizationName goalAmount asset network status endsAt createdAt')
@@ -123,7 +129,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const campaign = await CampaignModel.create(parsed.data);
+    const organization = await OrganizationModel.findOne({
+      _id: parsed.data.organizationId,
+      status: 'verified',
+    }).select('name');
+
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Campaigns can only be created for verified organizations.' },
+        { status: 409 },
+      );
+    }
+
+    const campaign = await CampaignModel.create({
+      ...parsed.data,
+      organizationId: organization._id,
+      organizationName: organization.name,
+    });
     return NextResponse.json({ data: campaign }, { status: 201 });
   } catch {
     return NextResponse.json(
