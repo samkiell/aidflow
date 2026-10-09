@@ -10,6 +10,7 @@ import { CampaignModel } from '@/models/Campaign';
 import { ContributionModel } from '@/models/Contribution';
 import { DistributionModel } from '@/models/Distribution';
 import { OrganizationModel } from '@/models/Organization';
+import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -95,6 +96,27 @@ async function sumAmountUnits(
 
 /** Public summaries expose no evidence references, reviewer notes, or owner IDs. */
 export async function GET(request: NextRequest) {
+  if (request.nextUrl.searchParams.get('review') === 'pending') {
+    const authError = reviewAuthorizationError(request);
+    if (authError) return authError;
+
+    try {
+      await connectMongo();
+      const data = await DistributionModel.find({ status: 'pending' })
+        .select('campaignId amount category publicSummary distributedAt createdBy createdAt +evidenceReference')
+        .populate('campaignId', 'title organizationName goalAmount')
+        .sort({ createdAt: 1, _id: 1 })
+        .limit(100)
+        .lean();
+      return NextResponse.json({ data, limit: 100 });
+    } catch {
+      return NextResponse.json(
+        { error: 'Distribution review queue is temporarily unavailable.' },
+        { status: 503 },
+      );
+    }
+  }
+
   const campaignId = request.nextUrl.searchParams.get('campaignId');
   if (!campaignId || !mongoose.isValidObjectId(campaignId)) {
     return NextResponse.json({ error: 'A valid campaignId is required.' }, { status: 400 });
@@ -102,6 +124,18 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectMongo();
+    const allowed = await consumeRateLimit(
+      'distribution-public-read',
+      getRequestIdentity(request.headers),
+      60,
+      60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many distribution requests. Try again shortly.' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
     const campaign = await CampaignModel.findOne({
       _id: campaignId,
       status: 'published',
@@ -165,6 +199,20 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
+
+    const allowed = await consumeRateLimit(
+      'distribution-submission',
+      user.id,
+      10,
+      60 * 60_000,
+    );
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many distribution submissions. Try again later.' },
+        { status: 429, headers: { 'Retry-After': '3600' } },
+      );
+    }
+
     if (user.role !== 'organization_owner' || !user.organizationId) {
       return NextResponse.json({ error: 'A verified organization owner is required.' }, { status: 403 });
     }
