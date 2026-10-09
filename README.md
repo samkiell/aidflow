@@ -5,34 +5,42 @@
 ## Current implementation
 
 - Next.js App Router and TypeScript.
-- MongoDB/Mongoose connection helper and database readiness endpoint.
-- Read-only Stellar Horizon account summary.
-- Public listing of published campaigns with bounded pagination.
-- Organization registration with pending/verified/rejected states and admin review.
-- Campaign creation restricted to verified organizations and a server-side admin token.
-- MongoDB-backed fixed-window rate limits for campaign discovery, campaign creation, organization registration, and contribution verification.
-- Stellar payment verification before recording contributions, with a public transaction ledger that does not expose donor public keys.
-- Soroban campaign-custody contract with contribution accounting, goal enforcement, owner withdrawals, failed-campaign refunds, pause/resume, typed events, and TTL maintenance methods.
-- CI for application typecheck/lint/tests/build and contract lint/tests/WASM build.
+- MongoDB/Mongoose connection helper, liveness, and database readiness endpoints.
+- Scrypt password hashing, rate-limited registration/login, revocable server-side sessions, and HTTP-only strict same-site cookies.
+- Donor accounts can submit one organization for manual verification; organization owners can create campaigns only after approval.
+- Separate server-side campaign-admin and review tokens for bootstrap campaign creation, organization review, distribution review, and audit access.
+- MongoDB-backed fixed-window rate limits for authentication, organization registration, campaign discovery/creation, contribution verification, and distribution endpoints.
+- Public campaign discovery and public distribution summaries only expose records for verified organizations.
+- Stellar payment verification checks successful single-operation Horizon payments, destination wallet, asset, network, positive amount, and supported decimal precision before recording contributions.
+- Public contribution records do not expose donor public keys.
+- Distribution submissions require a verified organization owner, a private evidence reference, and reviewer approval. Public responses omit evidence references and review notes.
+- Append-only application-level audit events for organization review, campaign creation, contribution verification, and distribution review.
+- Soroban campaign-custody contract with contribution accounting, goal enforcement, withdrawals, failed-campaign refunds, pause/resume, typed events, and TTL maintenance methods.
+- CI covers application typecheck/lint/tests/build, production dependency audits, and contract lint/tests/WASM build.
 
 ## Quick start
 
 1. Copy `.env.example` to `.env.local`.
 2. Set `MONGODB_URI` and the Stellar network settings.
-3. Configure a server-only `AIDFLOW_CAMPAIGN_ADMIN_TOKEN` with at least 32 random characters for organization review and campaign creation.
+3. Set separate, server-only `AIDFLOW_CAMPAIGN_ADMIN_TOKEN` and `AIDFLOW_REVIEW_TOKEN` values, each with at least 32 random characters.
 4. Install dependencies with `npm install` and run `npm run dev`.
 
 Open `http://localhost:3000`. Liveness: `/api/health`. Database readiness: `/api/ready`.
 
-## API notes
+## API overview
 
-- `GET /api/campaigns?page=1&limit=20` returns published campaigns linked to verified organizations only.
-- `POST /api/organizations` submits an organization for manual review. New organizations are pending by default.
-- `GET /api/organizations` lists pending submissions and `PATCH /api/organizations` records an admin verification/rejection decision. Both require `Authorization: Bearer <AIDFLOW_CAMPAIGN_ADMIN_TOKEN>`.
-- `POST /api/campaigns` requires the same server-side admin token and a verified `organizationId`. The token is a temporary bootstrap mechanism, not user authentication or per-user RBAC.
-- `POST /api/contributions` accepts a campaign ID and Stellar transaction hash. The server checks a successful single-operation Horizon payment, destination wallet, asset, and network before recording it. Duplicate transaction hashes are rejected.
-- `GET /api/contributions?campaignId=<id>` returns a privacy-conscious public ledger only for campaigns belonging to verified organizations.
-- `GET /api/stellar/account?publicKey=G...` performs a read-only lookup on the configured Stellar network.
+- `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`: account and session management.
+- `POST /api/organizations`: authenticated donor submits an organization for manual review.
+- `GET /api/organizations` and `PATCH /api/organizations`: review-token protected pending queue and verification decision.
+- `GET /api/campaigns?page=1&limit=20`: published, unexpired campaigns linked to verified organizations.
+- `POST /api/campaigns`: verified organization owners can create campaigns for their own organization; the campaign-admin token remains available for controlled bootstrap operations.
+- `POST /api/contributions`: verifies a successful single-operation Stellar payment against campaign destination, asset, amount, and network before recording it.
+- `GET /api/contributions?campaignId=<id>`: privacy-conscious public contribution ledger.
+- `POST /api/distributions`: verified organization owners submit a distribution with a private evidence reference.
+- `GET /api/distributions?campaignId=<id>`: approved public distribution summaries only.
+- `GET /api/distributions?review=pending` and `PATCH /api/distributions`: review-token protected queue and approval/rejection.
+- `GET /api/audit`: review-token protected paginated audit log.
+- `GET /api/stellar/account?publicKey=G...`: read-only Stellar account summary.
 
 Rate limiting trusts the `x-real-ip` header. Production deployments must configure their reverse proxy to overwrite that header; otherwise requests without it share a fallback rate-limit identity.
 
@@ -42,12 +50,13 @@ Rate limiting trusts the `x-real-ip` header. Production deployments must configu
 
 Remaining release blockers:
 
-- Per-user authentication, role-based authorization, and separation of admin/reviewer duties.
-- Distribution records, evidence handling, reviewer workflow, and immutable audit logs.
-- End-to-end integration between the Soroban contract and the contribution API. The current API records direct Horizon payments; it does not verify the new contract's events.
-- A monitored keeper/event indexer to refresh Soroban storage TTLs.
-- A committed Cargo lockfile, independent contract/security audit, backup/restore test, incident/recovery plan, and legal/compliance review.
-- Production secrets, proxy headers, monitoring, and deployment configuration must be validated in the actual hosting environment.
+- Email verification, password reset/recovery, MFA, and stronger admin/reviewer identity and separation of duties.
+- Evidence upload and private object storage; the current distribution API accepts a private evidence reference but does not verify that a file exists or preserve a signed evidence chain.
+- Atomic database transactions and reconciliation across contribution records, distribution reservations, and audit events.
+- End-to-end integration between the Soroban contract and the contribution API. The current API verifies direct Horizon payments; it does not verify this contract's events.
+- A monitored contract event indexer and TTL keeper. Soroban storage expires unless refreshed.
+- A committed Cargo lockfile, independent contract/security audit, backup/restore test, monitoring, incident/recovery plan, and legal/compliance review.
+- Production secrets, proxy headers, and hosting configuration must be validated in the actual environment.
 
 Keep the application on Stellar testnet until these controls and financial flows have been independently reviewed. Never commit wallet secret keys or expose beneficiary personal data.
 
