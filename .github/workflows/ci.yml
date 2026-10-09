@@ -33,4 +33,6 @@ jobs:
       - run: cargo fmt --manifest-path contract/Cargo.toml --all -- --check
       - run: cargo clippy --manifest-path contract/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path contract/Cargo.toml
+      - name: Install Stellar CLI required by Soroban SDK
+        run: cargo install --locked stellar-cli --version 25.2.0
       - run: cargo build --manifest-path contract/contracts/aidflow/Cargo.toml --target wasm32v1-none --release
