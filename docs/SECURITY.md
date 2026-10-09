@@ -8,10 +8,10 @@ Do not publish exploitable details in a public issue. Contact the maintainers pr
 
 - Never commit secrets, private keys, production connection strings, or beneficiary data.
 - Keep the app on Stellar testnet until payment and contract flows are validated end to end.
-- Configure `AIDFLOW_CAMPAIGN_ADMIN_TOKEN` as a server-only secret with at least 32 random characters. Rotate it immediately if exposed.
+- Configure separate server-only `AIDFLOW_CAMPAIGN_ADMIN_TOKEN` and `AIDFLOW_REVIEW_TOKEN` secrets, each with at least 32 random characters. Rotate them immediately if exposed.
 - Configure the reverse proxy to overwrite `x-real-ip`; rate limiting must not trust caller-controlled forwarding headers.
-- Keep organization verification and campaign creation restricted to the admin endpoint until per-user authentication and RBAC exist.
+- Organization owners authenticate with expiring HTTP-only sessions; organization verification and distribution review require the separate review token. Email verification, password recovery, MFA, and per-reviewer identities remain release blockers.
 - Treat failed typecheck/lint/tests/build and high/critical **production dependency** audit findings as release blockers. Development-tool advisories are reported separately and still require review.
-- Do not deploy the Soroban contract to mainnet without event-indexer/API integration, a monitored TTL keeper, an independent audit, and a documented recovery plan.
+- Do not deploy the Soroban contract to mainnet without event-indexer/API integration, a monitored TTL keeper, a committed Cargo lockfile, an independent audit, and a documented recovery plan.
 - Test database backup restoration and incident response before storing real donor or beneficiary records.
 - Removing a secret from the current file does not invalidate it; rotate the credential at its source.
