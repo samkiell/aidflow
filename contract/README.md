@@ -1,6 +1,6 @@
 # AidFlow Soroban contract
 
-The contract now implements campaign registration, token custody, goal enforcement, owner withdrawals, donor refunds, pause/resume, typed events, and storage-TTL maintenance. It is a separate on-chain component; the current Next.js contribution API still verifies direct Horizon payment operations and does **not** submit or verify this contract's events.
+The contract targets Soroban SDK 28.0.0 for Stellar Protocol 29 and implements campaign registration, token custody, goal enforcement, owner withdrawals, donor refunds, pause/resume, typed events, and storage-TTL maintenance. It is a separate on-chain component; the current Next.js contribution API still verifies direct Horizon payment operations and does **not** submit or verify this contract's events.
 
 ## Contract interface
 
