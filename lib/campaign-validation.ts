@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const positiveAmount = z
   .string()
-  .regex(/^\d{1,15}(\.\d{1,7})?$/, 'Amount must be a positive decimal with up to 7 places.')
+  .regex(/^\d{1,8}(\.\d{1,7})?$/, 'Amount must have up to 8 integer digits and 7 decimal places.')
   .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
     message: 'Amount must be greater than zero and within the supported range.',
   });
