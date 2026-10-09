@@ -7,6 +7,7 @@ const campaignSchema = new Schema(
     organizationId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true },
     organizationName: { type: String, required: true, trim: true, maxlength: 160 },
     goalAmount: { type: String, required: true },
+    totalDistributedUnits: { type: Number, required: true, default: 0 },
     destinationPublicKey: { type: String, required: true, match: /^G[A-Z2-7]{55}$/ },
     asset: { type: String, required: true, default: 'native' },
     assetIssuer: { type: String, match: /^G[A-Z2-7]{55}$/ },
