@@ -16,7 +16,13 @@ export const runtime = 'nodejs';
 const amountSchema = z
   .string()
   .regex(/^\d{1,8}(\.\d{1,7})?$/, 'Amount must have up to 8 integer digits and 7 decimal places.')
-  .refine((value) => decimalToUnits(value) > 0n, 'Amount must be greater than zero.');
+  .refine((value) => {
+    try {
+      return decimalToUnits(value) > 0n;
+    } catch {
+      return false;
+    }
+  }, 'Amount must be a positive decimal within the supported range.');
 
 const submissionSchema = z.object({
   campaignId: z.string().regex(/^[a-f\d]{24}$/i),
