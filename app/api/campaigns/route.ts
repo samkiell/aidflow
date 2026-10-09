@@ -7,6 +7,7 @@ import { createCampaignSchema } from '@/lib/campaign-validation';
 import { CampaignModel } from '@/models/Campaign';
 import { OrganizationModel } from '@/models/Organization';
 import { getAuthenticatedUser, hasTrustedOrigin } from '@/lib/auth';
+import { writeAuditLog } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -175,6 +176,28 @@ export async function POST(request: NextRequest) {
       organizationId: organization._id,
       organizationName: organization.name,
     });
+
+    try {
+      await writeAuditLog({
+        actorType: isAdmin ? 'campaign_admin_token' : 'user',
+        actorId: owner?.id,
+        action: 'campaign_created',
+        targetType: 'campaign',
+        targetId: String(campaign._id),
+        metadata: {
+          organizationId: String(organization._id),
+          status: campaign.status,
+          network: campaign.network,
+        },
+      });
+    } catch {
+      await CampaignModel.deleteOne({ _id: campaign._id });
+      return NextResponse.json(
+        { error: 'Audit record could not be saved; campaign was not created.' },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json({ data: campaign }, { status: 201 });
   } catch {
     return NextResponse.json(
