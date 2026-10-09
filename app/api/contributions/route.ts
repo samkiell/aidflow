@@ -5,6 +5,7 @@ import { connectMongo } from '@/lib/mongodb';
 import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 import { CampaignModel } from '@/models/Campaign';
 import { ContributionModel } from '@/models/Contribution';
+import { OrganizationModel } from '@/models/Organization';
 import { horizon, stellarNetwork } from '@/lib/stellar';
 
 export const runtime = 'nodejs';
@@ -36,9 +37,18 @@ export async function GET(request: NextRequest) {
     const campaign = await CampaignModel.findOne({
       _id: campaignId,
       status: 'published',
-    }).select('_id');
+    }).select('_id organizationId');
 
     if (!campaign) {
+      return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
+    }
+
+    const verifiedOrganization = await OrganizationModel.findOne({
+      _id: campaign.organizationId,
+      status: 'verified',
+    }).select('_id');
+
+    if (!verifiedOrganization) {
       return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
     }
 
