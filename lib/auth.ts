@@ -5,8 +5,8 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
-import { SessionModel } from '@/models/Session';
-import { UserModel } from '@/models/User';
+import { SessionModel } from '../models/Session';
+import { UserModel } from '../models/User';
 
 export const SESSION_COOKIE_NAME = 'aidflow_session';
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
