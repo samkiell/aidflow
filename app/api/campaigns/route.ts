@@ -6,6 +6,7 @@ import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 import { createCampaignSchema } from '@/lib/campaign-validation';
 import { CampaignModel } from '@/models/Campaign';
 import { OrganizationModel } from '@/models/Organization';
+import { getAuthenticatedUser, hasTrustedOrigin } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
@@ -87,16 +88,37 @@ export async function GET(request: NextRequest) {
  * the token to browser code or treat it as a replacement for production RBAC.
  */
 export async function POST(request: NextRequest) {
-  const adminToken = process.env.AIDFLOW_CAMPAIGN_ADMIN_TOKEN;
-  if (!adminToken || adminToken.length < 32) {
-    return NextResponse.json(
-      { error: 'Campaign creation requires a server-side admin token of at least 32 characters.' },
-      { status: 503 },
-    );
+  if (!hasTrustedOrigin(request)) {
+    return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   }
 
-  if (!hasAdminToken(request, adminToken)) {
-    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  const adminToken = process.env.AIDFLOW_CAMPAIGN_ADMIN_TOKEN;
+  const isAdmin =
+    Boolean(adminToken) &&
+    adminToken!.length >= 32 &&
+    hasAdminToken(request, adminToken!);
+  let owner: Awaited<ReturnType<typeof getAuthenticatedUser>> = null;
+
+  if (!isAdmin) {
+    try {
+      await connectMongo();
+      owner = await getAuthenticatedUser(request);
+    } catch {
+      return NextResponse.json(
+        { error: 'Authentication is temporarily unavailable.' },
+        { status: 503 },
+      );
+    }
+
+    if (!owner) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+    if (owner.role !== 'organization_owner' || !owner.organizationId) {
+      return NextResponse.json(
+        { error: 'Only verified organization owners can create campaigns.' },
+        { status: 403 },
+      );
+    }
   }
 
   let body: unknown;
@@ -126,6 +148,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Too many campaign creation attempts. Try again later.' },
         { status: 429, headers: { 'Retry-After': '3600' } },
+      );
+    }
+
+    if (owner && owner.organizationId !== parsed.data.organizationId) {
+      return NextResponse.json(
+        { error: 'You can only create campaigns for your own organization.' },
+        { status: 403 },
       );
     }
 
