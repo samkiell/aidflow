@@ -7,6 +7,7 @@ import { CampaignModel } from '@/models/Campaign';
 import { ContributionModel } from '@/models/Contribution';
 import { OrganizationModel } from '@/models/Organization';
 import { horizon, stellarNetwork } from '@/lib/stellar';
+import { decimalToUnits } from '@/lib/amount';
 
 export const runtime = 'nodejs';
 
@@ -168,8 +169,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment asset does not match this campaign.' }, { status: 422 });
     }
 
-    if (!Number.isFinite(Number(operation.amount)) || Number(operation.amount) <= 0) {
-      return NextResponse.json({ error: 'Payment amount is invalid.' }, { status: 422 });
+    let paymentUnits: bigint;
+    let goalUnits: bigint;
+    try {
+      paymentUnits = decimalToUnits(operation.amount);
+      goalUnits = decimalToUnits(campaign.goalAmount);
+    } catch {
+      return NextResponse.json(
+        { error: 'Payment amount exceeds the supported decimal precision or range.' },
+        { status: 422 },
+      );
+    }
+
+    if (paymentUnits <= 0n || paymentUnits > goalUnits) {
+      return NextResponse.json(
+        { error: 'Payment amount must be positive and no greater than the campaign goal.' },
+        { status: 422 },
+      );
     }
 
     const donorPublicKey = operation.source_account ?? transaction.source_account;
