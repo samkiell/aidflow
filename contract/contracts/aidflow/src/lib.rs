@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, token, Address, Env, Symbol,
+    contract, contracterror, contractevent, contractimpl, contracttype, token, Address, Env, Symbol,
 };
 
 const TTL_THRESHOLD: u32 = 100_000;
@@ -55,6 +55,47 @@ pub enum AidFlowError {
     RefundUnavailable = 14,
     InsufficientContribution = 15,
     Overflow = 16,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CampaignCreated {
+    #[topic]
+    pub campaign_id: Symbol,
+    pub owner: Address,
+    pub goal_amount: i128,
+    pub end_ledger: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContributionRecorded {
+    #[topic]
+    pub campaign_id: Symbol,
+    #[topic]
+    pub donor: Address,
+    pub amount: i128,
+    pub total_raised: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FundsWithdrawn {
+    #[topic]
+    pub campaign_id: Symbol,
+    #[topic]
+    pub owner: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContributionRefunded {
+    #[topic]
+    pub campaign_id: Symbol,
+    #[topic]
+    pub donor: Address,
+    pub amount: i128,
 }
 
 #[contract]
@@ -114,10 +155,13 @@ impl AidFlowContract {
             status: CampaignStatus::Active,
         };
         Self::store_campaign(&env, &key, &campaign);
-        env.events().publish(
-            (Symbol::new(&env, "campaign_created"), id),
-            (campaign.owner, campaign.goal_amount, campaign.end_ledger),
-        );
+        CampaignCreated {
+            campaign_id: id,
+            owner: campaign.owner,
+            goal_amount: campaign.goal_amount,
+            end_ledger: campaign.end_ledger,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -160,7 +204,7 @@ impl AidFlowContract {
 
         token::Client::new(&env, &campaign.token).transfer(
             &donor,
-            &env.current_contract_address(),
+            env.current_contract_address(),
             &amount,
         );
 
@@ -182,10 +226,13 @@ impl AidFlowContract {
             .persistent()
             .extend_ttl(&contribution_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
-        env.events().publish(
-            (Symbol::new(&env, "contributed"), campaign_id),
-            (donor, amount, campaign.total_raised),
-        );
+        ContributionRecorded {
+            campaign_id,
+            donor,
+            amount,
+            total_raised: campaign.total_raised,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -220,7 +267,7 @@ impl AidFlowContract {
         }
 
         token::Client::new(&env, &campaign.token).transfer(
-            &env.current_contract_address(),
+            env.current_contract_address(),
             &owner,
             &amount,
         );
@@ -231,10 +278,12 @@ impl AidFlowContract {
         campaign.status = CampaignStatus::Closed;
         Self::store_campaign(&env, &key, &campaign);
 
-        env.events().publish(
-            (Symbol::new(&env, "withdrawn"), campaign_id),
-            (owner, amount),
-        );
+        FundsWithdrawn {
+            campaign_id,
+            owner,
+            amount,
+        }
+        .publish(&env);
         Ok(amount)
     }
 
@@ -276,7 +325,7 @@ impl AidFlowContract {
         }
 
         token::Client::new(&env, &campaign.token).transfer(
-            &env.current_contract_address(),
+            env.current_contract_address(),
             &donor,
             &amount,
         );
@@ -294,10 +343,12 @@ impl AidFlowContract {
         campaign.status = CampaignStatus::Closed;
         Self::store_campaign(&env, &key, &campaign);
 
-        env.events().publish(
-            (Symbol::new(&env, "refunded"), campaign_id),
-            (donor, amount),
-        );
+        ContributionRefunded {
+            campaign_id,
+            donor,
+            amount,
+        }
+        .publish(&env);
         Ok(amount)
     }
 
