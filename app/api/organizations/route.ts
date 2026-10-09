@@ -6,6 +6,7 @@ import { consumeRateLimit, getRequestIdentity } from '@/lib/rate-limit';
 import { OrganizationModel } from '@/models/Organization';
 import { UserModel } from '@/models/User';
 import { getAuthenticatedUser, hasTrustedOrigin } from '@/lib/auth';
+import { writeAuditLog } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 
@@ -136,6 +137,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    try {
+      await writeAuditLog({
+        actorType: 'user',
+        actorId: owner!.id,
+        action: 'organization_submitted',
+        targetType: 'organization',
+        targetId: String(organization._id),
+        metadata: { status: 'pending' },
+      });
+    } catch {
+      await UserModel.updateOne(
+        { _id: owner!.id, organizationId: organization._id },
+        { $set: { role: 'donor' }, $unset: { organizationId: 1 } },
+      );
+      await OrganizationModel.deleteOne({ _id: organization._id });
+      return NextResponse.json(
+        { error: 'Audit record could not be saved; organization was not submitted.' },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json({
       data: {
         id: organization.id,
@@ -206,6 +228,12 @@ export async function PATCH(request: NextRequest) {
 
   try {
     await connectMongo();
+    const previous = await OrganizationModel.findById(parsed.data.organizationId)
+      .select('status reviewNote reviewedAt');
+    if (!previous) {
+      return NextResponse.json({ error: 'Organization not found.' }, { status: 404 });
+    }
+
     const organization = await OrganizationModel.findByIdAndUpdate(
       parsed.data.organizationId,
       {
@@ -220,6 +248,31 @@ export async function PATCH(request: NextRequest) {
 
     if (!organization) {
       return NextResponse.json({ error: 'Organization not found.' }, { status: 404 });
+    }
+
+    try {
+      await writeAuditLog({
+        actorType: 'review_token',
+        action: parsed.data.status === 'verified' ? 'organization_verified' : 'organization_rejected',
+        targetType: 'organization',
+        targetId: String(organization._id),
+        metadata: { status: organization.status },
+      });
+    } catch {
+      await OrganizationModel.updateOne(
+        { _id: organization._id, status: parsed.data.status },
+        {
+          $set: {
+            status: previous.status,
+            reviewNote: previous.reviewNote,
+            reviewedAt: previous.reviewedAt,
+          },
+        },
+      );
+      return NextResponse.json(
+        { error: 'Audit record could not be saved; organization review was rolled back.' },
+        { status: 503 },
+      );
     }
 
     return NextResponse.json({ data: organization });
