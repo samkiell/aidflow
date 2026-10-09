@@ -267,7 +267,7 @@ impl AidFlowContract {
         }
 
         token::Client::new(&env, &campaign.token).transfer(
-            env.current_contract_address(),
+            &env.current_contract_address(),
             &owner,
             &amount,
         );
@@ -325,7 +325,7 @@ impl AidFlowContract {
         }
 
         token::Client::new(&env, &campaign.token).transfer(
-            env.current_contract_address(),
+            &env.current_contract_address(),
             &donor,
             &amount,
         );
@@ -481,7 +481,7 @@ impl AidFlowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, token, Address, Env};
+    use soroban_sdk::{testutils::{Address as _, Ledger as _}, token, Address, Env};
 
     fn setup() -> (Env, Address, Address, Address, Address) {
         let env = Env::default();
