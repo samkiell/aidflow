@@ -11,6 +11,8 @@ import { UserModel } from '@/models/User';
 export const SESSION_COOKIE_NAME = 'aidflow_session';
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+let sessionIndexesReady: Promise<void> | undefined;
+
 export interface AuthenticatedUser {
   id: string;
   name: string;
@@ -59,10 +61,17 @@ export async function createUserSession(userId: string): Promise<{
   token: string;
   expiresAt: Date;
 }> {
-  await Promise.all([
+  sessionIndexesReady ??= Promise.all([
     SessionModel.collection.createIndex({ tokenHash: 1 }, { unique: true }),
     SessionModel.collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
-  ]);
+  ]).then(() => undefined);
+
+  try {
+    await sessionIndexesReady;
+  } catch (error) {
+    sessionIndexesReady = undefined;
+    throw error;
+  }
 
   const token = randomBytes(32).toString('base64url');
   const tokenHash = createHash('sha256').update(token).digest('hex');
