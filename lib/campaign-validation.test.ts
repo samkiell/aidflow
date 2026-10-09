@@ -5,7 +5,7 @@ import { createCampaignSchema } from './campaign-validation';
 const validCampaign = () => ({
   title: 'Clean water for rural communities',
   description: 'Fund reliable clean water access for a community and publish reviewed distribution outcomes.',
-  organizationName: 'Community Aid Network',
+  organizationId: '64b000000000000000000001',
   goalAmount: '1250.5000000',
   destinationPublicKey: Keypair.random().publicKey(),
   endsAt: new Date(Date.now() + 86_400_000).toISOString(),
