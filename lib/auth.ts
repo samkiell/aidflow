@@ -4,7 +4,7 @@ import {
   scrypt as scryptCallback,
   timingSafeEqual,
 } from 'node:crypto';
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { SessionModel } from '@/models/Session';
 import { UserModel } from '@/models/User';
 
@@ -113,4 +113,29 @@ export async function revokeUserSession(request: NextRequest): Promise<void> {
 export function hasTrustedOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
   return !origin || origin === request.nextUrl.origin;
+}
+
+export function setSessionCookie(
+  response: NextResponse,
+  token: string,
+  expiresAt: Date,
+): void {
+  response.cookies.set(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    expires: expiresAt,
+  });
+}
+
+export function clearSessionCookie(response: NextResponse): void {
+  response.cookies.set(SESSION_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    expires: new Date(0),
+    maxAge: 0,
+  });
 }
