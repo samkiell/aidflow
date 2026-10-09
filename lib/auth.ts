@@ -95,18 +95,33 @@ export async function getAuthenticatedUser(
 
   if (!session) return null;
 
-  const user = await UserModel.findById(session.userId)
+  const userResult: unknown = await UserModel.findById(session.userId)
     .select('name email role status organizationId')
     .lean();
 
-  if (!user || user.status !== 'active') return null;
-  if (user.role !== 'donor' && user.role !== 'organization_owner') return null;
+  if (
+    !userResult ||
+    typeof userResult !== 'object' ||
+    Array.isArray(userResult)
+  ) {
+    return null;
+  }
+
+  const user = userResult as Record<string, unknown>;
+  const role = user.role;
+  const status = user.status;
+  const name = user.name;
+  const email = user.email;
+
+  if (status !== 'active') return null;
+  if (role !== 'donor' && role !== 'organization_owner') return null;
+  if (typeof name !== 'string' || typeof email !== 'string') return null;
 
   return {
     id: String(user._id),
-    name: user.name,
-    email: user.email,
-    role: user.role,
+    name,
+    email,
+    role,
     organizationId: user.organizationId ? String(user.organizationId) : null,
   };
 }
