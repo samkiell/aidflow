@@ -18,7 +18,7 @@ export const createCampaignSchema = z
   .object({
     title: z.string().trim().min(5).max(120),
     description: z.string().trim().min(30).max(5000),
-    organizationId: z.string().regex(/^[a-f\\d]{24}$/i, 'A valid organizationId is required.'),
+    organizationId: z.string().regex(/^[a-f\d]{24}$/i, 'A valid organizationId is required.'),
     goalAmount: positiveAmount,
     destinationPublicKey: stellarPublicKey,
     asset: z.string().trim().min(1).max(12).regex(/^[A-Za-z0-9]+$/, 'Asset code contains invalid characters.').default('native'),
