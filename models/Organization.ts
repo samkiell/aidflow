@@ -2,6 +2,7 @@ import { model, models, Schema, type InferSchemaType } from 'mongoose';
 
 const organizationSchema = new Schema(
   {
+    ownerId: { type: Schema.Types.ObjectId, ref: 'User' },
     name: { type: String, required: true, trim: true, maxlength: 160 },
     contactEmail: { type: String, required: true, lowercase: true, trim: true },
     description: { type: String, required: true, trim: true, maxlength: 3000 },
@@ -20,6 +21,7 @@ const organizationSchema = new Schema(
 );
 
 organizationSchema.index({ status: 1, createdAt: 1 });
+organizationSchema.index({ ownerId: 1 }, { unique: true, sparse: true });
 organizationSchema.index(
   { registrationNumber: 1 },
   { unique: true, sparse: true },
