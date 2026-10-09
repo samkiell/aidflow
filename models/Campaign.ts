@@ -4,6 +4,7 @@ const campaignSchema = new Schema(
   {
     title: { type: String, required: true, trim: true, maxlength: 120 },
     description: { type: String, required: true, trim: true, maxlength: 5000 },
+    organizationId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true },
     organizationName: { type: String, required: true, trim: true, maxlength: 160 },
     goalAmount: { type: String, required: true },
     destinationPublicKey: { type: String, required: true, match: /^G[A-Z2-7]{55}$/ },
@@ -17,6 +18,7 @@ const campaignSchema = new Schema(
 );
 
 campaignSchema.index({ status: 1, createdAt: -1 });
+campaignSchema.index({ organizationId: 1, status: 1 });
 campaignSchema.index({ endsAt: 1, status: 1 });
 
 export type Campaign = InferSchemaType<typeof campaignSchema>;
