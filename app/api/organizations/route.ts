@@ -54,6 +54,16 @@ export async function POST(request: NextRequest) {
   let owner: Awaited<ReturnType<typeof getAuthenticatedUser>> = null;
   try {
     await connectMongo();
+    await Promise.all([
+      OrganizationModel.collection.createIndex(
+        { ownerId: 1 },
+        { unique: true, sparse: true },
+      ),
+      OrganizationModel.collection.createIndex(
+        { registrationNumber: 1 },
+        { unique: true, sparse: true },
+      ),
+    ]);
     owner = await getAuthenticatedUser(request);
     if (!owner) {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
